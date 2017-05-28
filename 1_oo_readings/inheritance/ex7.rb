@@ -17,3 +17,4 @@ end
 p joe = Student.new(90)
 p bob = Student.new(80)
 puts "Well done!" if joe.better_grade_than?(bob)
+
