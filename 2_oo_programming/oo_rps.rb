@@ -218,8 +218,8 @@ class Computer < Player
       loop do
         puts "Please select difficulty: "
         puts "(1)Easy/Randomized - R2D2"
-        puts "(2)Medium/Smart - Hal"
-        puts "(3)Hard/Smarter - Sonny"
+        puts "(2)Medium/A little smart - Hal"
+        puts "(3)Hard/Intelligent - Sonny"
         num = gets.chomp.to_i
         break Object.const_get(BOTS[num - 1]).new if (1..3).cover?(num)
         puts "Please choose a number (1-3)..."
@@ -301,11 +301,12 @@ class Hard < Computer
 
   def adjust_weights(score_board)
     score_board.each do |mv, ai_mv, human_win, ai_win|
-      @move_weights[obj_to_sym(ai_mv)] *= 0.75 if human_win
-      @move_weights[obj_to_sym(ai_mv)] += 12
+      @move_weights[obj_to_sym(ai_mv)] *= 0.80 if human_win
+      @move_weights[obj_to_sym(ai_mv)] += 11
       @move_weights[obj_to_sym(mv)] *= 0.8 if !human_win && !ai_win
     end
     increase_enemy_move(score_board)
+    p @move_weights
   end
 end
 
