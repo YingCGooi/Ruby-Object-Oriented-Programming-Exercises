@@ -3,18 +3,21 @@ class RPSGame
   attr_accessor :human, :computer, :score_board
 
   def initialize
-    @computer = Computer.new
     display_welcome_message
     @human = Human.new
     @score_board = []
   end
 
+  def display_welcome_from_ai
+    puts "Hi #{human.name}, I am #{computer.bot.name}. Let's begin..."
+  end
+
   def display_welcome_message
-    bannerize "I am #{computer.name}. Welcome to Rock, Paper, Scissors!"
+    bannerize "Welcome to Rock, Paper, Scissors, Lizard, Spock!"
   end
 
   def display_goodbye_message
-    bannerize "Thanks for playing Rock, Paper, Scissors!"
+    bannerize "Thanks for playing Rock, Paper, Scissors, Lizard, Spock!"
   end
 
   def bannerize(message)
@@ -29,18 +32,18 @@ class RPSGame
 
   def display_moves
     p_ctr("#{human.name} chose #{human.move} |"\
-      " #{computer.name} chose #{computer.move}")
+      " #{computer.bot.name} chose #{computer.bot.move}")
   end
 
   def display_winner
-    ai_move = computer.move
+    ai_move = computer.bot.move
     human_move = human.move
     if human_win?
       p_ctr "#{human_move} beats #{ai_move}"
       p_ctr "#{human.name} won this turn."
     elsif computer_win?
       p_ctr "#{ai_move} beats #{human_move}"
-      p_ctr "#{computer.name} won this turn."
+      p_ctr "#{computer.bot.name} won this turn."
     else
       p_ctr "It's a tie! \n"
     end
@@ -56,22 +59,22 @@ class RPSGame
       puts "Invalid input, must be 'y' or 'n'."
     end
 
-    answer == 'y'
+    answer.downcase == 'y'
   end
 
   def count_scores
     human.score += 1 if human_win?
     computer.score += 1 if computer_win?
-    @score_board << [human.move, computer.move, human_win?, computer_win?]
-    computer.adjust_weights(@score_board)
+    @score_board << [human.move, computer.bot.move, human_win?, computer_win?]
+    computer.bot.adjust_weights(@score_board)
   end
 
   def human_win?
-    human.move > computer.move
+    human.move > computer.bot.move
   end
 
   def computer_win?
-    computer.move > human.move
+    computer.bot.move > human.move
   end
 
   def display_row(str1, str2, str3)
@@ -88,7 +91,7 @@ class RPSGame
   end
 
   def display_score_board
-    display_row(human.name.to_s, "Round", computer.name.to_s)
+    display_row(human.name.to_s, "Round", computer.bot.name)
     puts "----------+-------+----------".center(CONSOLE_WIDTH)
     display_score_data
     puts score_board_padding
@@ -101,14 +104,14 @@ class RPSGame
   def display_scores
     display_score_board
     bannerize("#{human.name}'s score is #{human.score} | "\
-    "#{computer.name}'s score is #{computer.score}")
+    "#{computer.bot.name}'s score is #{computer.score}")
   end
 
   def display_final_winner
     if human.score > computer.score
       bannerize "YOU WON THE GAME!"
     else
-      bannerize "GAME OVER! #{computer.name} WON!"
+      bannerize "GAME OVER! #{computer.bot.name} WON!"
     end
   end
 
@@ -118,16 +121,22 @@ class RPSGame
     computer.score = 0
   end
 
+  def reset_computer
+    @computer = Computer.new
+    display_welcome_from_ai
+  end
+
   def exceed_max_score?
     [human.score, computer.score].max >= 10
   end
 
   def play
     loop do
+      reset_computer
       reset_score
       loop do
         human.choose
-        computer.choose
+        computer.bot.choose
         display_moves
         display_winner
         count_scores
@@ -145,6 +154,7 @@ class Player
   attr_accessor :move, :name, :score
 
   def initialize
+    @score = 0
     set_name
   end
 
@@ -184,7 +194,7 @@ class Human < Player
       loop do
         print "#{name.capitalize}, please choose "
         puts "(1)Rock, (2)Paper, (3)Scissors, (4)Spock, (5)Lizard:"
-        p choice = parse_input(gets.chomp)
+        choice = parse_input(gets.chomp)
         break instantiate(choice) if valid_choice?(choice)
         puts "Invalid choice, please try again..."
       end
@@ -194,36 +204,101 @@ end
 
 class Computer < Player
   attr_accessor :move_weights
-  attr_reader :move_prob_ranges
+  attr_reader :move_prob_ranges, :bot
+  BOTS = ['Easy', 'Medium', 'Hard']
 
   def initialize
     super
-    @move_weights = { rock: 10, paper: 10, scissors: 10, spock: 10, lizard: 10 }
+    reset_weights
   end
 
   def set_name
-    self.name = ['R2D2', 'Hal', 'Sonny', 'EVE'].sample
+    # self.name = ['R2D2', 'Hal', 'Sonny', 'EVE'].sample
+    @bot =
+      loop do
+        puts "Please select difficulty: "
+        puts "(1)Easy/Randomized - R2D2 | (2)Medium - Hal | (3)Hard/Strategic - Sonny"
+        num = gets.chomp.to_i
+        break Object.const_get(BOTS[num - 1]).new if (1..3).include?(num)
+        puts "Please choose a number (1-3)..."
+      end
   end
 
-  def adjust_weights(score_board)
+  def obj_to_sym(move_obj)
+    move_obj.value.downcase.to_sym
+  end
 
+  def reset_weights
+    @move_weights = { rock: 100, paper: 100, scissors: 100, spock: 100, lizard: 100 }
+  end
+
+  def enemy(move)
+    Move::VALUES.select do |move_sym|
+      instantiate(move_sym) > instantiate(move.value)
+    end
+  end
+
+  def adjust_weights(score_board); end
+
+  def increase_enemy_move(score_board)
+    mv, _, _, ai_win = score_board.last
+    enemy(mv).each { |move| @move_weights[move] < 110 ? @move_weights[move] += 50 : @move_weights[move] += 10}
   end
 
   def weighted_choice
-    sum = 0
+    sum = 1
     weight_ranges =
       move_weights.map do |move, prob|
-        [move, (sum + 1..sum += prob)]
+        [move, (sum...sum += prob)]
       end .to_h # {:rock=>1..3, :paper=>4..6, ...}
+    random_num = rand(1..sum.to_f)
 
-    random_num = rand(1..sum)
     weight_ranges.keys.find do |move|
       weight_ranges[move].include?(random_num)
     end # returns the selected move symbol
   end
 
   def choose
+    p @move_weights
     self.move = instantiate(weighted_choice)
+  end
+end
+
+class Easy < Computer
+  def initialize
+    @name = 'R2D2'
+    reset_weights
+  end
+
+  def choose
+    self.move = instantiate(Move::VALUES.sample)
+  end
+end
+
+class Medium < Computer
+  def initialize
+    @name = 'Hal'
+    reset_weights
+  end
+
+  def adjust_weights(score_board)
+    increase_enemy_move(score_board)
+  end
+end
+
+class Hard < Computer
+  def initialize
+    @name = 'Sonny'
+    reset_weights
+  end
+
+  def adjust_weights(score_board)
+    score_board.each do |mv, ai_mv, human_win, ai_win|
+      @move_weights[obj_to_sym(ai_mv)] *= 0.75 if human_win
+      @move_weights[obj_to_sym(ai_mv)] += 12
+      @move_weights[obj_to_sym(mv)] *= 0.8 if !human_win && !ai_win
+    end
+    increase_enemy_move(score_board)
   end
 end
 
