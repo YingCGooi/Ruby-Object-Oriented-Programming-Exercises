@@ -206,7 +206,7 @@ class Computer < Player
   end
 
   def adjust_weights(score_board)
-    p score_board.to_s + "is the score board"
+
   end
 
   def weighted_choice
@@ -234,7 +234,7 @@ class Move
   def initialize # DRY on subclasses
     move_class = self.class
     @value = move_class.to_s
-    # returns 'ROCK' when subclass is Rock
+    # return 'ROCK' when subclass is Rock
   end
 
   def to_s
@@ -244,31 +244,31 @@ end
 
 class Rock < Move
   def >(other_move)
-    %w[SCISSORS LIZARD].include?(other_move.value)
+    %w[Scissors Lizard].include?(other_move.value)
   end
 end
 
 class Paper < Move
   def >(other_move)
-    %w[ROCK SPOCK].include?(other_move.value)
+    %w[Rock Spock].include?(other_move.value)
   end
 end
 
 class Scissors < Move
   def >(other_move)
-    %w[LIZARD PAPER].include?(other_move.value)
+    %w[Lizard Paper].include?(other_move.value)
   end
 end
 
 class Lizard < Move
   def >(other_move)
-    %w[PAPER SPOCK].include?(other_move.value)
+    %w[Paper Spock].include?(other_move.value)
   end
 end
 
 class Spock < Move
   def >(other_move)
-    %w[ROCK SCISSORS].include?(other_move.value)
+    %w[Rock Scissors].include?(other_move.value)
   end
 end
 
