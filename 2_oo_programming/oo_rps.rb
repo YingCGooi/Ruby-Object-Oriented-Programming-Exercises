@@ -217,9 +217,9 @@ class Computer < Player
     @bot =
       loop do
         puts "Please select difficulty: "
-        puts "(1)Easy/Randomized - R2D2"
-        puts "(2)Medium/A little smart - Hal"
-        puts "(3)Hard/Intelligent - Sonny"
+        puts "  (1)Easy/Randomized - R2D2"
+        puts "  (2)Medium/A little smart - Hal"
+        puts "  (3)Hard/Intelligent - Sonny"
         num = gets.chomp.to_i
         break Object.const_get(BOTS[num - 1]).new if (1..3).cover?(num)
         puts "Please choose a number (1-3)..."
@@ -248,7 +248,7 @@ class Computer < Player
     mv, = score_board.last
     enemy(mv).each do |move|
       key = @move_weights[move]
-      key < 110 ? @move_weights[move] += 50 : @move_weights[move] += 10
+      key < 110 ? @move_weights[move] += 60 : @move_weights[move] += 10
     end
   end
 
@@ -257,7 +257,8 @@ class Computer < Player
     weight_ranges =
       move_weights.map do |move, prob|
         [move, (sum...sum += prob)]
-      end .to_h # {:rock=>1..3, :paper=>4..6, ...}
+      end .to_h # {:rock=>1..100, :paper=>101..200, ...}
+
     random_num = rand(1..sum.to_f)
 
     weight_ranges.keys.find do |move|
@@ -300,10 +301,12 @@ class Hard < Computer
   end
 
   def adjust_weights(score_board)
-    score_board.each do |mv, ai_mv, human_win, ai_win|
-      @move_weights[obj_to_sym(ai_mv)] *= 0.80 if human_win
-      @move_weights[obj_to_sym(ai_mv)] += 11
-      @move_weights[obj_to_sym(mv)] *= 0.8 if !human_win && !ai_win
+    score_board.each do |human_mv, ai_mv, human_win, ai_win|
+      if human_win
+        @move_weights[obj_to_sym(ai_mv)] *= 0.60
+        @move_weights[obj_to_sym(ai_mv)] += 20
+      end
+      @move_weights[obj_to_sym(human_mv)] *= 0.8 if !human_win && !ai_win
     end
     increase_enemy_move(score_board)
     p @move_weights
