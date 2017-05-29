@@ -47,7 +47,6 @@ class RPSGame
     else
       p_ctr "It's a tie! \n"
     end
-    puts "=" * CONSOLE_WIDTH
   end
 
   def play_again?
@@ -91,6 +90,7 @@ class RPSGame
   end
 
   def display_score_board
+    puts "=" * CONSOLE_WIDTH
     display_row(human.name.to_s, "Round", computer.bot.name)
     puts "----------+-------+----------".center(CONSOLE_WIDTH)
     display_score_data
@@ -115,7 +115,8 @@ class RPSGame
     end
   end
 
-  def reset_score
+  def reset_game
+    reset_computer
     self.score_board = []
     human.score = 0
     computer.score = 0
@@ -132,8 +133,7 @@ class RPSGame
 
   def play
     loop do
-      reset_computer
-      reset_score
+      reset_game
       loop do
         human.choose
         computer.bot.choose
@@ -217,9 +217,11 @@ class Computer < Player
     @bot =
       loop do
         puts "Please select difficulty: "
-        puts "(1)Easy/Randomized - R2D2 | (2)Medium - Hal | (3)Hard/Strategic - Sonny"
+        puts "(1)Easy/Randomized - R2D2"
+        puts "(2)Medium/Smart - Hal"
+        puts "(3)Hard/Smarter - Sonny"
         num = gets.chomp.to_i
-        break Object.const_get(BOTS[num - 1]).new if (1..3).include?(num)
+        break Object.const_get(BOTS[num - 1]).new if (1..3).cover?(num)
         puts "Please choose a number (1-3)..."
       end
   end
@@ -229,7 +231,9 @@ class Computer < Player
   end
 
   def reset_weights
-    @move_weights = { rock: 100, paper: 100, scissors: 100, spock: 100, lizard: 100 }
+    @move_weights = {
+      rock: 100, paper: 100, scissors: 100, spock: 100, lizard: 100
+    }
   end
 
   def enemy(move)
@@ -241,8 +245,11 @@ class Computer < Player
   def adjust_weights(score_board); end
 
   def increase_enemy_move(score_board)
-    mv, _, _, ai_win = score_board.last
-    enemy(mv).each { |move| @move_weights[move] < 110 ? @move_weights[move] += 50 : @move_weights[move] += 10}
+    mv, = score_board.last
+    enemy(mv).each do |move|
+      key = @move_weights[move]
+      key < 110 ? @move_weights[move] += 50 : @move_weights[move] += 10
+    end
   end
 
   def weighted_choice
