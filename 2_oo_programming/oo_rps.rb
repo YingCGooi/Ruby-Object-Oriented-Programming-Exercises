@@ -319,7 +319,7 @@ class Move
   def initialize # DRY on subclasses
     move_class = self.class
     @value = move_class.to_s.downcase.to_sym
-    # return 'ROCK' when subclass is Rock
+    # return :rock when subclass is Rock
   end
 
   def to_s
