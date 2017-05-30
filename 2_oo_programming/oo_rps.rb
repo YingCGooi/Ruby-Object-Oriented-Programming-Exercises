@@ -267,7 +267,7 @@ class Computer < Player
   end
 
   def choose
-    p @move_weights
+    # p @move_weights
     self.move = instantiate(weighted_choice)
   end
 end
