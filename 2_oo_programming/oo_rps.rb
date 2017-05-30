@@ -309,7 +309,6 @@ class Hard < Computer
       @move_weights[obj_to_sym(human_mv)] *= 0.8 if !human_win && !ai_win
     end
     increase_enemy_move(score_board)
-    p @move_weights
   end
 end
 
@@ -319,42 +318,42 @@ class Move
 
   def initialize # DRY on subclasses
     move_class = self.class
-    @value = move_class.to_s
+    @value = move_class.to_s.downcase.to_sym
     # return 'ROCK' when subclass is Rock
   end
 
   def to_s
-    @value
+    @value.to_s.capitalize
   end
 end
 
 class Rock < Move
   def >(other_move)
-    %w[Scissors Lizard].include?(other_move.value)
+    %i[scissors lizard].include?(other_move.value)
   end
 end
 
 class Paper < Move
   def >(other_move)
-    %w[Rock Spock].include?(other_move.value)
+    %i[rock spock].include?(other_move.value)
   end
 end
 
 class Scissors < Move
   def >(other_move)
-    %w[Lizard Paper].include?(other_move.value)
+    %i[lizard paper].include?(other_move.value)
   end
 end
 
 class Lizard < Move
   def >(other_move)
-    %w[Paper Spock].include?(other_move.value)
+    %i[paper spock].include?(other_move.value)
   end
 end
 
 class Spock < Move
   def >(other_move)
-    %w[Rock Scissors].include?(other_move.value)
+    %i[rock scissors].include?(other_move.value)
   end
 end
 
