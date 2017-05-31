@@ -22,16 +22,16 @@ class RPSGame
 
   def bannerize(message)
     puts "=" * CONSOLE_WIDTH
-    p_ctr(message)
+    puts_center(message)
     puts "=" * CONSOLE_WIDTH
   end
 
-  def p_ctr(message)
+  def puts_center(message)
     puts message.center(CONSOLE_WIDTH)
   end
 
   def display_moves
-    p_ctr("#{human.name} chose #{human.move} |"\
+    puts_center("#{human.name} chose #{human.move} |"\
       " #{computer.bot.name} chose #{computer.bot.move}")
   end
 
@@ -39,13 +39,13 @@ class RPSGame
     ai_move = computer.bot.move
     human_move = human.move
     if human_win?
-      p_ctr "#{human_move} beats #{ai_move}"
-      p_ctr "#{human.name} won this turn."
+      puts_center "#{human_move} beats #{ai_move}"
+      puts_center "#{human.name} won this turn."
     elsif computer_win?
-      p_ctr "#{ai_move} beats #{human_move}"
-      p_ctr "#{computer.bot.name} won this turn."
+      puts_center "#{ai_move} beats #{human_move}"
+      puts_center "#{computer.bot.name} won this turn."
     else
-      p_ctr "It's a tie! \n"
+      puts_center "It's a tie! \n"
     end
   end
 
@@ -107,7 +107,7 @@ class RPSGame
     "#{computer.bot.name}'s score is #{computer.score}")
   end
 
-  def display_final_winner
+  def display_final_winners
     if human.score > computer.score
       bannerize "YOU WON THE GAME!"
     else
@@ -127,7 +127,7 @@ class RPSGame
     display_welcome_from_ai
   end
 
-  def exceed_max_score?
+  def exceed_human_computer_max_score?
     [human.score, computer.score].max >= 10
   end
 
@@ -141,9 +141,9 @@ class RPSGame
         display_winner
         count_scores
         display_scores
-        break if exceed_max_score?
+        break if exceed_human_computer_max_score?
       end
-      display_final_winner
+      display_final_winners
       break unless play_again?
     end
     display_goodbye_message
@@ -162,10 +162,14 @@ class Player
     system("clear") || system("cls")
   end
 
-  def instantiate(choice)
-    move_name = choice.to_s.capitalize
-    move_subclass = Object.const_get(move_name)
-    move_subclass.new
+  def instantiate_move(choice)
+    case choice
+    when :rock then Rock.new
+    when :paper then Paper.new
+    when :scissors then Scissors.new
+    when :lizard then Lizard.new
+    when :spock then Spock.new
+    end
   end
 end
 
@@ -192,10 +196,10 @@ class Human < Player
   def choose
     self.move =
       loop do
-        print "#{name.capitalize}, please choose "
+        puts "#{name.capitalize}, please choose move by number or full name:"
         puts "(1)Rock, (2)Paper, (3)Scissors, (4)Spock, (5)Lizard:"
         choice = parse_input(gets.chomp)
-        break instantiate(choice) if valid_choice?(choice)
+        break instantiate_move(choice) if valid_choice?(choice)
         puts "Invalid choice, please try again..."
       end
     clear_screen
@@ -213,7 +217,10 @@ class Computer < Player
   end
 
   def set_name
-    # self.name = ['R2D2', 'Hal', 'Sonny', 'EVE'].sample
+    choose_difficulty
+  end
+
+  def choose_difficulty
     @bot =
       loop do
         puts "Please select difficulty: "
@@ -238,14 +245,14 @@ class Computer < Player
 
   def enemy(move)
     Move::VALUES.select do |move_sym|
-      instantiate(move_sym) > instantiate(move.value)
+      instantiate_move(move_sym) > instantiate_move(move.value)
     end
   end
 
   def adjust_weights(score_board); end
 
   def increase_enemy_move(score_board)
-    mv, = score_board.last
+    mv, _ = score_board.last
     enemy(mv).each do |move|
       key = @move_weights[move]
       key < 110 ? @move_weights[move] += 60 : @move_weights[move] += 10
@@ -257,7 +264,7 @@ class Computer < Player
     weight_ranges =
       move_weights.map do |move, prob|
         [move, (sum...sum += prob)]
-      end .to_h # {:rock=>1..100, :paper=>101..200, ...}
+      end.to_h # {:rock=>1..100, :paper=>101..200, ...}
 
     random_num = rand(1..sum.to_f)
 
@@ -268,7 +275,7 @@ class Computer < Player
 
   def choose
     # p @move_weights
-    self.move = instantiate(weighted_choice)
+    self.move = instantiate_move(weighted_choice)
   end
 end
 
@@ -279,7 +286,7 @@ class Easy < Computer
   end
 
   def choose
-    self.move = instantiate(Move::VALUES.sample)
+    self.move = instantiate_move(Move::VALUES.sample)
   end
 end
 
@@ -316,11 +323,7 @@ class Move
   VALUES = [:rock, :paper, :scissors, :spock, :lizard]
   attr_reader :value
 
-  def initialize # DRY on subclasses
-    move_class = self.class
-    @value = move_class.to_s.downcase.to_sym
-    # return :rock when subclass is Rock
-  end
+  def initialize; end
 
   def to_s
     @value.to_s.capitalize
@@ -328,30 +331,40 @@ class Move
 end
 
 class Rock < Move
+  def initialize; @value = :rock; end
+
   def >(other_move)
     %i[scissors lizard].include?(other_move.value)
   end
 end
 
 class Paper < Move
+  def initialize; @value = :paper; end
+
   def >(other_move)
     %i[rock spock].include?(other_move.value)
   end
 end
 
 class Scissors < Move
+  def initialize; @value = :scissors; end
+
   def >(other_move)
     %i[lizard paper].include?(other_move.value)
   end
 end
 
 class Lizard < Move
+  def initialize; @value = :lizard; end
+
   def >(other_move)
     %i[paper spock].include?(other_move.value)
   end
 end
 
 class Spock < Move
+  def initialize; @value = :spock; end
+
   def >(other_move)
     %i[rock scissors].include?(other_move.value)
   end
