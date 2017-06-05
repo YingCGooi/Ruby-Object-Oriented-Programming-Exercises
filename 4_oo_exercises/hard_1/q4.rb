@@ -22,6 +22,7 @@ class Seacraft
     # ... other code to track catamaran-specific data omitted ...
     def range
       super + 10
+      # override range method
     end
   end
 
