@@ -1,3 +1,5 @@
+require 'pry'
+
 module Displayable
   CONSOLE_WIDTH = 80
 
@@ -95,7 +97,7 @@ class TTTGame
     puts ""
     loop do
       prompt "Select game mode (leave blank for default mode 0):"
-      puts "  (0) Board: 3x3 | In-a-row: 3 | Players: Human, Computer"
+      puts "  (0) Board: 3x3 | Matches: 3 | Players: Human, Computer"
       puts "  (1) Board: 5x5 | Matches: 4 | Players: Human, Computer"
       puts "  (2) Board: 5x5 | Matches: 4 | Players: Human, Computer, Computer"
       puts "  (3) Board: 5x5 | Matches: 4 | Players: Human, Human, Computer"
@@ -109,7 +111,7 @@ class TTTGame
 
   def clear_screen_and_display_board
     clear_screen
-    players.each { |x| print [x.class, x.name, x.marker] }
+    players.each { |x| print "#{x.class} player #{x.name}: #{x.marker}. " }
     puts ""
     board.draw
     puts ""
@@ -269,14 +271,21 @@ class Board
   end
 
   def calculate_win_rows(arr)
-    arr.each_cons(size).map.with_index do |(*row), idx|
-      row if idx % size == 0
-    end.compact
+    arr.each_slice(size).to_a
+  end
+
+  def additional_rows
+    if size == 5
+      [[1, 7, 13, 19], [5, 11, 17, 23], [3, 7, 11, 15], [9, 13, 17, 21]]
+    else
+      []
+    end
   end
 
   def calculate_win_diagonals(rows)
     [(0...rows.size).map { |i| rows[i][i] },
-     (0...rows.size).map { |i| rows[i][rows.size - 1 - i] }]
+     (0...rows.size).map { |i| rows[i][rows.size - 1 - i] }] +
+     additional_rows
   end
 
   def calculate_win_cols(rows)
@@ -292,9 +301,13 @@ class Board
   end
 
   def winning_mark(squares, n)
-    # squares.uniq.size == 1 && !squares.include?(' ') if size == 3
     print squares
-    squares.find { |sq| squares.count(sq) == n && sq != INITIAL_MARKER }
+    # squares.find { |sq| squares.count(sq) == n && sq != INITIAL_MARKER }
+    cons_identical_marks =
+      squares.each_cons(n).find do |cons_marks|
+        cons_marks.uniq.size == 1 && !cons_marks.include?(INITIAL_MARKER)
+      end
+    cons_identical_marks&.first
   end
 
   def someone_won?
@@ -439,33 +452,55 @@ class Computer < Player
     center if board.squares[center] == Board::INITIAL_MARKER
   end
 
-  def opportunity?(squares)
-    ([marker] * 2 + [Board::INITIAL_MARKER]).sort == squares.sort
+  def opportunity?(board, marks)
+    marks.each_cons(4).any? do |cons|
+      cons.count {|x| cons.count(x) == 3 && x != Board::INITIAL_MARKER} &&
+      cons.include?(Board::INITIAL_MARKER)
+    end
+    # ([marker] * (board.n_identical_markers - 1) +
+    #   [Board::INITIAL_MARKER]).sort == marks.sort
   end
 
-  def danger?(squares)
-    squares.select do |sq|
-      ![Board::INITIAL_MARKER, marker].include? sq
-    end.count == 2
+  def danger?(board, marks, count)
+    marks.count do |mark|
+      ![Board::INITIAL_MARKER, marker].include? mark
+    end >= count
   end
 
-  def unmarked_sq_idx(line, squares)
-    line.find.with_index { |_, i| squares[i] == Board::INITIAL_MARKER }
+  def critical_unmarked_idx(board, line_num_marks)
+    line_num_marks.each_cons(board.n_identical_markers).min_by do |cons|
+      cons.flatten.count(' ')
+    end.find { |num, mark| mark == Board::INITIAL_MARKER }&.first
+  end
+
+  def unmarked_sq_idx(board, line, marks)
+    if board.size == 3
+      return line.find.with_index { |_, i| marks[i] == Board::INITIAL_MARKER }
+    end
+
+    line_num_marks = marks.map.with_index { |mark, i| [line[i], mark] }
+
+    critical_unmarked_idx(board, line_num_marks)
   end
 
   def defence_idx(board)
-    square_at_offence_risk_idx(board, false)
+    square_at_offence_risk_idx(board, 3, false) ||
+    square_at_offence_risk_idx(board, 2, false)
   end
 
   def offence_idx(board)
-    square_at_offence_risk_idx(board)
+    square_at_offence_risk_idx(board, 3) ||
+    square_at_offence_risk_idx(board, 2)
   end
 
-  def square_at_offence_risk_idx(board, offence = true)
+  def square_at_offence_risk_idx(board, ct, offence = true)
     board.winning_lines.each do |line|
-      squares = board.squares.values_at(*line)
-      at_risk = offence ? opportunity?(squares) : danger?(squares)
-      return unmarked_sq_idx(line, squares) if at_risk
+      marks = board.squares.values_at(*line)
+      at_risk = offence ? opportunity?(board, marks) : danger?(board, marks, ct)
+      if at_risk
+        selected_idx = unmarked_sq_idx(board, line, marks)
+        selected_idx.nil? ? next : (return selected_idx)
+      end
     end
     nil
   end
