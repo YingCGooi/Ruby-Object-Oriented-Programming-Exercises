@@ -495,10 +495,10 @@ class Computer < Player
   end
 
   def size_n_opportunity?(board, marks, count)
-    size = board.n_matches
-    marks.each_cons(size).any? do |cons|
+    n_match = board.n_matches
+    marks.each_cons(n_match).any? do |cons|
       ([marker] * count +
-        [Board::INITIAL_MARK] * (size - count)).sort == cons.sort
+        [Board::INITIAL_MARK] * (n_match - count)).sort == cons.sort
     end
   end
 
@@ -507,33 +507,50 @@ class Computer < Player
     size_n_opportunity?(board, marks, count)
   end
 
-  def danger?(board, marks, count)
-    marks.count do |mark|
-      ![Board::INITIAL_MARK, marker].include? mark
-    end >= count
+  def size_3_danger?(board, marks)
+    other_markers = marks.sort.drop(1)
+    (marks - [Board::INITIAL_MARK]).size == 2 && !marks.include?(marker) &&
+    other_markers.uniq.size == 1
   end
 
-  def critical_unmarked_idx(board, line_num_marks)
+  def size_n_danger?(board, marks, count)
+    n_match = board.n_matches
+    is_danger =
+      marks.each_cons(n_match).any? do |cons|
+        other_marks = cons.sort.drop(n_match - count)
+        !other_marks.include?(marker) &&
+        other_marks.uniq.size == 1 &&
+        (cons - [Board::INITIAL_MARK]).size == count
+    end
+  end
+
+  def danger?(board, marks, ct)
+    return size_3_danger?(board, marks) if board.size == 3
+    size_n_danger?(board, marks, ct)
+  end
+
+  def critical_unmarked_idx(board, line_num_marks, count)
     line_num_marks.each_cons(board.n_matches).min_by do |cons|
-      cons.flatten.count(' ')
+      cons.flatten.count(Board::INITIAL_MARK)
     end.find { |num, mark| mark == Board::INITIAL_MARK }&.first
   end
 
-  def unmarked_sq_idx(board, line, marks)
+  def unmarked_sq_idx(board, line, marks, count)
     if board.size == 3
       return line.find.with_index { |_, i| marks[i] == Board::INITIAL_MARK }
     end
 
     line_num_marks = marks.map.with_index { |mark, i| [line[i], mark] }
 
-    critical_unmarked_idx(board, line_num_marks)
+    critical_unmarked_idx(board, line_num_marks, count) ||
+    line[marks.index(Board::INITIAL_MARK)]
   end
 
-  def defence_idx(board, opt = {count: 2})
+  def defence_idx(board, opt = {count: 3})
     square_at_offence_risk_idx(board, opt[:count], false)
   end
 
-  def offence_idx(board, opt = {count: 2})
+  def offence_idx(board, opt = {count: 3})
     square_at_offence_risk_idx(board, opt[:count])
   end
 
@@ -543,8 +560,9 @@ class Computer < Player
       at_risk =
         offence ? opportunity?(board, marks, ct) : danger?(board, marks, ct)
       if at_risk
-        selected_idx = unmarked_sq_idx(board, line, marks)
-        selected_idx.nil? ? next : (return selected_idx)
+        selected_idx = unmarked_sq_idx(board, line, marks, ct)
+        next if selected_idx.nil?
+        return selected_idx
       end
     end
     nil
