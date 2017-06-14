@@ -475,7 +475,7 @@ class Human < Player
 
   def prompt_move_message(board)
     if board.size < 9
-      prompt "#{name}, choose a square between" \
+      prompt "#{name}, choose a square between " \
              "#{joinor(board.unmarked_sq_nums)}: "
     else
       prompt "#{name}, choose a square number that is marked in blue."
