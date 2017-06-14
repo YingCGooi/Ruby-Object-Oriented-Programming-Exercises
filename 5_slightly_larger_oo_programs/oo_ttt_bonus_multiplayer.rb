@@ -128,8 +128,8 @@ class TTTGame
     clear_screen
     players.each { |x| print "#{x.class} player #{x.name}: #{x.marker}. " }
     puts ""
-    alert "First player who matches #{board.n_matches} wins the round | " \
-    "First player who scores #{winning_score} wins the game"
+    alert "To win this round: match #{board.n_matches} | " \
+    "To win the game: score #{winning_score} rounds"
     puts ""
     board.draw(players)
     puts ""
