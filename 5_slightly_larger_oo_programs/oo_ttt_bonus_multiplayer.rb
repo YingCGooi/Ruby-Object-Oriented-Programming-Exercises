@@ -1,5 +1,3 @@
-require 'pry'
-
 class String # source: Stackoverflow
   def black;          "\033[30m#{self}\033[0m" end
   def red;            "\033[31m#{self}\033[0m" end
@@ -31,7 +29,7 @@ module Displayable
   end
 
   def prompt(message)
-    puts ">> #{message}"
+    puts ">> #{message}".green
   end
 
   def capitalize_words(str)
@@ -39,7 +37,7 @@ module Displayable
   end
 
   def alert(message)
-    puts "<!> #{message}..."
+    puts "<!> #{message}...".yellow
   end
 
   def display_player_created
@@ -53,11 +51,10 @@ module Displayable
 
   def count_down_to_game_start
     alert "Game starting in...3"
-    # sleep 1
+    sleep 1
     alert "...2"
-    # sleep 1
-    # alert "...1"
-    # sleep 1
+    sleep 1
+    alert "...1"
   end
 
   def display_goodbye_message
@@ -93,11 +90,11 @@ class TTTGame
 
   def initialize_players(choice)
     case choice
-    when 0..1 then [Human.new, Computer.new]
     when 2 then [Human.new, Computer.new, Computer.new]
-    when 3 then [Human.new, Human.new]
-    when 4 then [Human.new, Computer.new]
+    when 3 then [Human.new, Human.new, Computer.new]
     when 5 then [Human.new, Computer.new, Computer.new]
+    when 6 then [Human.new, Human.new, Computer.new]
+    else [Human.new, Computer.new]
     end
   end
 
@@ -105,7 +102,7 @@ class TTTGame
     case choice
     when 0 then Board.new(3)
     when 1..3 then Board.new(5)
-    when 4..5 then Board.new(9)
+    when 4..6 then Board.new(9)
     end
   end
 
@@ -117,20 +114,22 @@ class TTTGame
       puts "  (0) Board: 3x3 | Matches: 3 | Players: Human, Computer"
       puts "  (1) Board: 5x5 | Matches: 4 | Players: Human, Computer"
       puts "  (2) Board: 5x5 | Matches: 4 | Players: Human, Computer, Computer"
-      puts "  (3) Board: 5x5 | Matches: 4 | Players: Human, Human"
+      puts "  (3) Board: 5x5 | Matches: 4 | Players: Human, Human, Computer"
       puts "  (4) Board: 9x9 | Matches: 5 | Players: Human, Computer"
       puts "  (5) Board: 9x9 | Matches: 5 | Players: Human, Computer, Computer"
+      puts "  (6) Board: 9x9 | Matches: 5 | Players: Human, Human, Computer"
       choice = gets.chomp
-      return choice.to_i if %W[#{''} 0 1 2 3 4 5].include? choice
-      alert "Invalid input, please enter a number between (1-3)"
+      return choice.to_i if %w[0 1 2 3 4 5 6].include?(choice) || choice.empty?
+      alert "Invalid input, please enter a number between (1-5)"
     end
   end
 
   def clear_screen_and_display_board
     clear_screen
-    players.each { |x| puts "#{x.class} player #{x.name}: #{x.marker} " }
-    alert "First player who matches #{board.n_matches} wins the round"
-    alert "First player who scores #{winning_score} wins the game"
+    players.each { |x| print "#{x.class} player #{x.name}: #{x.marker}. " }
+    puts ""
+    alert "First player who matches #{board.n_matches} wins the round | " \
+    "First player who scores #{winning_score} wins the game"
     puts ""
     board.draw(players)
     puts ""
@@ -194,12 +193,16 @@ class TTTGame
     if final_winner.is_a?(Human)
       bannerize "Congratulations, #{final_winner.name}! You have won the game!"
     else
-      bannerize "#{final_winner.class} player #{final_winner.name} won the game!"
+      bannerize "Computer player #{final_winner.name} won the game!"
     end
   end
 
   def reverse_players_order
     @players = @players.reverse
+  end
+
+  def someone_won_or_game_tie?
+    board.full? || board.someone_won?
   end
 
   def play
@@ -208,7 +211,7 @@ class TTTGame
       clear_screen_and_display_board
       loop do
         players_move
-        break if board.full? || board.someone_won?
+        break if someone_won_or_game_tie?
       end
       clear_screen_and_display_board
       calculate_scores_and_display_results
@@ -242,6 +245,10 @@ class Board
     puts "     |" * (size - 1)
   end
 
+  def print_pipe_or_newline(i)
+    i < 0 ? (print "|") : (print "\n")
+  end
+
   def draw_num_vert_lines(idx)
     ((-size + 1)..0).each do |i|
       if squares[idx + i - 1] == INITIAL_MARK
@@ -249,7 +256,7 @@ class Board
       else
         print "     "
       end
-      i < 0 ? (print "|") : (print "\n")
+      print_pipe_or_newline(i)
     end
   end
 
@@ -305,25 +312,35 @@ class Board
     arr.each_slice(size).to_a
   end
 
-  def additional_rows(rows)
+  def size_9_additional_diags
+    # (1...5).flat_map do |x|
+    #   [(x...size).map     { |i| rows[i][i - x] },
+    #    (x...size).map     { |i| rows[i][-i + x - 1] },
+    #    (0...size - x).map { |i| rows[i][i + x] },
+    #    (0...size - x).map { |i| rows[i][-x - 1 - i] }]
+    # end (this will cause rubocop to complain on AbcSize)
+    [[9, 19, 29, 39, 49, 59, 69, 79], [17, 25, 33, 41, 49, 57, 65, 73],
+     [1, 11, 21, 31, 41, 51, 61, 71], [7, 15, 23, 31, 39, 47, 55, 63],
+     [18, 28, 38, 48, 58, 68, 78], [26, 34, 42, 50, 58, 66, 74],
+     [2, 12, 22, 32, 42, 52, 62], [6, 14, 22, 30, 38, 46, 54],
+     [27, 37, 47, 57, 67, 77], [35, 43, 51, 59, 67, 75],
+     [3, 13, 23, 33, 43, 53], [5, 13, 21, 29, 37, 45], [36, 46, 56, 66, 76],
+     [44, 52, 60, 68, 76], [4, 14, 24, 34, 44], [4, 12, 20, 28, 36]]
+  end
+
+  def additional_diagonals
+    return [] if size == 3
     if size == 5
       [[1, 7, 13, 19], [5, 11, 17, 23], [3, 7, 11, 15], [9, 13, 17, 21]]
     elsif size == 9
-      (1...5).flat_map do |x|
-        [ (x...size).map     { |i| rows[i][i - x]},
-          (x...size).map     { |i| rows[i][-i + x - 1]},
-          (0...size - x).map { |i| rows[i][i + x]},
-          (0...size - x).map { |i| rows[i][-x - 1 - i]} ]
-      end
-    else
-      []
+      size_9_additional_diags
     end
   end
 
   def calculate_win_diagonals(rows)
     [(0...size).map { |i| rows[i][i] },
      (0...size).map { |i| rows[i][size - 1 - i] }] +
-     additional_rows(rows)
+      additional_diagonals
   end
 
   def calculate_win_cols(rows)
@@ -354,7 +371,7 @@ class Board
     case size
     when 3 then 3
     when 5 then 4
-    when 7..9 then 5
+    when 9 then 5
     end
   end
 
@@ -377,7 +394,7 @@ class Player
   @@created_markers = { human: [], computer: [] }
   @@names = ['R2D2', 'Hal', 'Sonny']
   @@marker_list = %w[X O V N]
-  @@colors = [:red, :yellow, :green]
+  @@colors = [:red, :yellow, :magenta]
 
   attr_reader :name, :marker, :color
   attr_accessor :score
@@ -390,7 +407,7 @@ class Player
     case color
     when :red then @marker.red
     when :yellow then @marker.yellow
-    when :green then @marker.green
+    when :magenta then @marker.magenta
     end
   end
 end
@@ -458,7 +475,8 @@ class Human < Player
 
   def prompt_move_message(board)
     if board.size < 9
-      prompt "#{name}, choose a square between #{joinor(board.unmarked_sq_nums)}: "
+      prompt "#{name}, choose a square between" \
+             "#{joinor(board.unmarked_sq_nums)}: "
     else
       prompt "#{name}, choose a square number that is marked in blue."
     end
@@ -498,12 +516,12 @@ class Computer < Player
   end
 
   def offence_defence_idx(board)
-    offence_idx(board, count: 4) ||
-    defence_idx(board, count: 4) ||
-    offence_idx(board, count: 3) ||
-    defence_idx(board, count: 3) ||
-    offence_idx(board, count: 2) ||
-    defence_idx(board, count: 2)
+    offence_idx(board, count: 4)   ||
+      defence_idx(board, count: 4) ||
+      offence_idx(board, count: 3) ||
+      defence_idx(board, count: 3) ||
+      offence_idx(board, count: 2) ||
+      defence_idx(board, count: 2)
   end
 
   def random_idx(board)
@@ -511,7 +529,7 @@ class Computer < Player
   end
 
   def center_idx(board)
-    center = board.size ** 2 / 2
+    center = board.size**2 / 2
     center if board.squares[center] == empty_mark
   end
 
@@ -533,7 +551,7 @@ class Computer < Player
     size_n_opportunity?(board, marks, count)
   end
 
-  def size_3_danger?(board, marks)
+  def size_3_danger?(marks)
     (marks - [empty_mark]).size == 2 && !marks.include?(marker)
   end
 
@@ -542,54 +560,54 @@ class Computer < Player
     marks.each_cons(n_match).any? do |cons|
       other_marks = cons.sort.drop(n_match - count)
       !other_marks.include?(marker) &&
-      other_marks.uniq.size == 1 &&
-      (cons - [empty_mark]).size == count
+        other_marks.uniq.size == 1 &&
+        (cons - [empty_mark]).size == count
     end
   end
 
   def danger?(board, marks, ct)
-    return size_3_danger?(board, marks) if board.size == 3
+    return size_3_danger?(marks) if board.size == 3
     size_n_danger?(board, marks, ct)
   end
 
   def empty_mark_between_two_other_marks?(line_num_marks)
     line_num_marks.each_cons(3).find do |cons|
       cons[0].last =~ /(?!#{marker})[A-Z]/ &&
-      cons[1].last == empty_mark &&
-      cons[2].last =~ /(?!#{marker})[A-Z]/
+        cons[1].last == empty_mark &&
+        cons[2].last =~ /(?!#{marker})[A-Z]/
     end
   end
 
   def empty_mark_next_to_other_mark?(line_num_marks)
     line_num_marks.each_cons(2).find do |cons|
-      cons.count { |a, b| b == empty_mark } == 1 &&
-      cons.count { |a, b| b =~ /(?!#{marker})[A-Z]/ } == 1
+      cons.count { |_, b| b == empty_mark } == 1 &&
+        cons.count { |_, b| b =~ /(?!#{marker})[A-Z]/ } == 1
     end
   end
 
-  def critical_unmarked_idx(board, line, marks, count)
+  def critical_unmarked_idx(line, marks)
     line_num_marks = marks.map.with_index { |mark, i| [line[i], mark] }
 
     selected =
       empty_mark_between_two_other_marks?(line_num_marks) ||
       empty_mark_next_to_other_mark?(line_num_marks)
 
-    selected&.find { |num, mark| mark == empty_mark}&.first ||
-    line[marks.index(empty_mark)]
+    selected&.find { |_, mark| mark == empty_mark }&.first ||
+      line[marks.index(empty_mark)]
   end
 
-  def unmarked_sq_idx(board, line, marks, count)
+  def unmarked_sq_idx(board, line, marks)
     if board.size == 3
       return line.find.with_index { |_, i| marks[i] == empty_mark }
     end
-    critical_unmarked_idx(board, line, marks, count)
+    critical_unmarked_idx(line, marks)
   end
 
-  def defence_idx(board, opt = {count: 3})
+  def defence_idx(board, opt = { count: 3 })
     square_at_offence_risk_idx(board, opt[:count], false)
   end
 
-  def offence_idx(board, opt = {count: 3})
+  def offence_idx(board, opt = { count: 3 })
     square_at_offence_risk_idx(board, opt[:count])
   end
 
@@ -599,7 +617,7 @@ class Computer < Player
       at_risk =
         offence ? opportunity?(board, marks, ct) : danger?(board, marks, ct)
       if at_risk
-        selected_idx = unmarked_sq_idx(board, line, marks, ct)
+        selected_idx = unmarked_sq_idx(board, line, marks)
         next if selected_idx.nil?
         return selected_idx
       end
