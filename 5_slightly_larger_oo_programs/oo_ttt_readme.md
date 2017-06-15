@@ -246,7 +246,7 @@ example_line3 = ['O', 'X', 'X', 'X', 'O'] # not in danger, therefore ignored
 
 `example_line1` will take precedence, and will cause `defence_idx(board, count: 3)` to return the index number of the chosen board square move. Since `defence_idx(board, count: 3)` is evaluated, `defence_idx(board, count: 2)` will not be evaluated and therefore `example_line2` will be ignored. `example_line3` will be ignored since the line poses no danger.
 
-### Additional Feature on Defense
+#### Additional Feature on Defense
 An additional feature is also implemented for the defense AI.
 The following two methods come into play when determining if a square is at risk.
 
@@ -292,7 +292,7 @@ selected&.find { |_, mark| mark == empty_mark }&.first # empty_mark = ' '
 # => 3
 ```
 
-The ampersand `&` is a safe navigation operator, to avoid methods being called on in case of a `nil` return value.
+The `&.` is a safe navigation operator, and its purpose is to avoid methods being called on in case of a `nil` return value.
 
 #### Final AI logic
 
