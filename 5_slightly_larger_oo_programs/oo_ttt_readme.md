@@ -194,12 +194,12 @@ Why class variables here? We want the sub-classes `Human` and `Computer` to have
 - ` @@created_markers`: This is useful to avoid duplicates by validating the input against existing markers. We can also determine the number of human players by calling `@@created_markers[:human].count`
 - `@@names`: Each time a computer player is created, its name is removed from the list, therefore avoiding duplicate computer names when creating the next player. Each time a human player is created, its name is added to the list, to avoid duplicate name entered for the next possible human player.
 - `@@marker_list`: The default marker list. Markers will be created in order and included in `@@created_markers` value array if no overriding from the user happens. If a user picks a marker other than the first one, it removes that marker from the list unless it is a marker other than in the list. This is to make sure that no duplicate markers will be created by `Computer`.
-- The colors of players are predetermined in order, and will only have an effect on the console output.
+- `@@colors`: The colors of players are predetermined in order, and will only have an effect on the console output.
 
 ## AI for larger boards
 Coming up with a working solution of AI moves in larger boards is challenging. Since the combinations of offensive and defensive moves are a lot higher, I narrowed them down to a few rules. They are explained below.
 
-#### AI: Offense
+### AI: Offense
 The offensive move is determined by the number of computer markers that occur consecutively.
 Priority is given to a match that has the highest number of consecutive markers.
 
@@ -222,7 +222,7 @@ example_line3 = ['X', 'O', 'O', 'O', 'X'] # ignored since it's not possible to m
 
 `example_line1` will cause the `offence_idx(board, count: 3)` to return the index number of the chosen board square move, `example_line2`, will not be taken into account since `offence_idx(board, count: 2)` is not evaluated after the first expression `offence_idx(board, count: 3)` in the `||` operator returns a value. `example_line3` will also be ignored.
 
-#### AI: Defense
+### AI: Defense
 The defensive move is determined by the number of consecutive markers that occurs consecutively, other than the computer's own markers. Priority is given to the highest number of consecutive markers, other than computer's own markers.
 
 The logic is written as follows:
@@ -246,6 +246,7 @@ example_line3 = ['O', 'X', 'X', 'X', 'O'] # not in danger, therefore ignored
 
 `example_line1` will take precedence, and will cause `defence_idx(board, count: 3)` to return the index number of the chosen board square move. Since `defence_idx(board, count: 3)` is evaluated, `defence_idx(board, count: 2)` will not be evaluated and therefore `example_line2` will be ignored. `example_line3` will be ignored since the line poses no danger.
 
+### Additional Feature on Defense
 An additional feature is also implemented for the defense AI.
 The following two methods come into play when determining if a square is at risk.
 
