@@ -1,6 +1,6 @@
 # Tic Tac Toe Expansion
 
-The entire source code is included in the `oo_ttt_bonus_multiplayer.rb` file. This readme serves as a quick overview of how the game works, as well as how classes are organized.
+The entire source code is included in the `oo_ttt_bonus_multiplayer.rb` file. This documentation serves as a quick overview of how the game works, as well as how classes are organized.
 
 ## Usage
 
@@ -167,10 +167,39 @@ We know that a human and a computer player have vastly different attributes. For
 The purpose of this module is to reduce the number of methods of `TTTGame` and `Player` subclasses.
 We know that players and the game engine will use generic message displaying methods (such as `prompt` and `alert`), therefore, moving these methods to a module will greatly reduce the number of methods in that class, leaving only the key methods and methods specific to that class.
 
-#### AI for larger boards
+
+#### Class variables
+
+The list of class variables that are created in the `Player` class:
+
+```ruby
+class Player
+  @@created_markers = { human: [], computer: [] }
+  # player markers created will be nested in the hash's value as an array.
+
+  @@names = ['R2D2', 'Hal', 'Sonny']
+  # these names will be used to randomly determine computer's name
+
+  @@marker_list = %w[X O V N]
+  # the default marker list, unless user overrides it
+
+  @@colors = [:red, :yellow, :magenta]
+  # the colors are pre-determined, the first player marker will be red, last player marker will be magenta.
+  # ... rest of the code omitted
+end
+```
+
+Why class variables here? We want the sub-classes `Human` and `Computer` to have access to the player states and able to modify its contents, and we want to keep track of all of the changes at one place. Therefore only class variables will fit our needs here. Below are descriptions of each class variables:
+
+- ` @@created_markers`: This is useful to avoid duplicates by validating the input against existing markers. We can also determine the number of human players by calling `@@created_markers[:human].count`
+- `@@names`: Each time a computer player is created, its name is removed from the list, therefore avoiding duplicate computer names when creating the next player. Each time a human player is created, its name is added to the list, to avoid duplicate name entered for the next possible human player.
+- `@@marker_list`: The default marker list. Markers will be created in order and included in `@@created_markers` value array if no overriding from the user happens. If a user picks a marker other than the first one, it removes that marker from the list unless it is a marker other than in the list. This is to make sure that no duplicate markers will be created by `Computer`.
+- The colors of players are predetermined in order, and will only have an effect on the console output.
+
+## AI for larger boards
 Coming up with a working solution of AI moves in larger boards is challenging. Since the combinations of offensive and defensive moves are a lot higher, I narrowed them down to a few rules. They are explained below.
 
-### AI: Offense
+#### AI: Offense
 The offensive move is determined by the number of computer markers that occur consecutively.
 Priority is given to a match that has the highest number of consecutive markers.
 
@@ -193,7 +222,7 @@ example_line3 = ['X', 'O', 'O', 'O', 'X'] # ignored since it's not possible to m
 
 `example_line1` will cause the `offence_idx(board, count: 3)` to return the index number of the chosen board square move, `example_line2`, will not be taken into account since `offence_idx(board, count: 2)` is not evaluated after the first expression `offence_idx(board, count: 3)` in the `||` operator returns a value. `example_line3` will also be ignored.
 
-### AI: Defense
+#### AI: Defense
 The defensive move is determined by the number of consecutive markers that occurs consecutively, other than the computer's own markers. Priority is given to the highest number of consecutive markers, other than computer's own markers.
 
 The logic is written as follows:
@@ -264,49 +293,22 @@ selected&.find { |_, mark| mark == empty_mark }&.first # empty_mark = ' '
 
 The ampersand `&` is a safe navigation operator, to avoid methods being called on in case of a `nil` return value.
 
-### Final AI logic
+#### Final AI logic
 
 The final computer move logic can be written as:
 
 ```ruby
-  offence_idx(board, count: 4)   || 
-  # offensive move comes first
-    defence_idx(board, count: 4) || 
-    # defensive move comes next
+  offence_idx(board, count: 4)   || # offensive move comes first
+    defence_idx(board, count: 4) || # defensive move comes next
     offence_idx(board, count: 3) || # lower matches come later
     defence_idx(board, count: 3) ||
     offence_idx(board, count: 2) ||
     defence_idx(board, count: 2) ||
-    center_idx(board)            || 
-    # if no offensive/defensive moves are found, place marker at center
+    center_idx(board)            || # if no offensive/defensive moves are found, place marker at center
     random_idx(board) # otherwise pick a random square index number
 ```
 
-### Class variables
-
-The list of class variables that are created in the `Player` class:
-
-```ruby
-class Player
-  @@created_markers = { human: [], computer: [] }
-  # player markers created will be nested in the hash's value as an array.
-  @@names = ['R2D2', 'Hal', 'Sonny']
-  # these names will be used to randomly determine computer's name
-  @@marker_list = %w[X O V N]
-  # the default marker list, unless user overrides it
-  @@colors = [:red, :yellow, :magenta]
-  # the colors are pre-determined, the first player marker will be red, last player marker will be magenta.
-  # ... rest of the code omitted
-end
-```
-
-Why class variables here? We want the sub-classes `Human` and `Computer` to have access to the player states and able to modify its contents, and we want to keep track of all of the changes at one place. Therefore using instance variables on class will not work, since it will only be available to the `Player` class, not its subclasses.
-
-- ` @@created_markers`: This is useful to avoid duplicates by validating the input against existing markers. We can also determine the number of human players by calling `@@created_markers[:human].count`
-- `@@names`: Each time a computer player is created, its name is removed from the list, therefore avoiding duplicate computer names when creating the next player. Each time a human player is created, its name is added to the list, to avoid duplicate name entered for the next possible human player.
-- `@@marker_list`: The default marker list. Markers will be created in order and included in `@@created_markers` if no overriding from the user happens. If a user picks a marker other than the first one, it removes that marker from the list unless it is a marker other than in the list. This is to make sure that no duplicate markers will be created by `Computer`.
-- The colors of players are predetermined in order, and will only have an effect on the console output.
 
 ## Final Thoughts
 
-I feel that there are still ways that I can improve on refactoring the source code and OO design. But for now, I am satisfied with a working program consists of many features, built on top of OO-style programming. Although I wished to implement the minimax algorithm (to create an unbeatable AI), that's probably too much for now, but I may come back at it in the future.
+I feel that there are still ways that I can improve on refactoring the source code and OO design. But for now, I am satisfied with a working program consists of many features, built on top of OO-style programming. Although I wished to implement the minimax algorithm (to create an unbeatable AI), that's probably too much for now, although I may come back at it in the future.
