@@ -282,7 +282,6 @@ class Player
              end
     end
 
-    # compensate for Aces
     values.count('A').times { sum -= 10 if sum > MAX_VALUE }
 
     sum
