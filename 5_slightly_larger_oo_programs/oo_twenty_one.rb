@@ -21,31 +21,39 @@ module Displayable
     p_horizon_bar(style)
   end
 
-  def alert(message); puts yellow("<!> #{message}...") end
-  def prompt(message); puts green(">> #{message}")     end
-  def p_horizon_bar(style = '-'); puts style * CONSOLE_WIDTH end
-  def p_short_line; puts("-" * (CONSOLE_WIDTH / 2)).center(CONSOLE_WIDTH) end
+  def clear_screen; system('clear') || system('cls')                 end
+  def display_welcome_message; bannerize "Welcome to TwentyOne!"     end
 
-  def print_rjust(message)
-    offset = 9 * message.scan(/\[0m/).count
-    print(message.rjust(CONSOLE_WIDTH / 2 - 1 + offset))
+  def prompt_enter; prompt "Hit Enter to continue..."; gets          end
+  def alert(message); puts yellow("<!> #{message}...")               end
+  def prompt(message); puts green(">> #{message}")                   end
+
+  def p_horizon_bar(style = '-'); puts style * CONSOLE_WIDTH         end
+  def capitalize_words(str); str.split.map(&:capitalize).join(' ')   end
+
+  def p_short_line
+    puts(("-" * (CONSOLE_WIDTH / 2)).center(CONSOLE_WIDTH))
   end
+
+  def offset(message); 9 * message.scan(/\[0m/).count                end
 
   def p_center(message)
-    offset = 9 * message.scan(/\[0m/).count
-    puts message.center(CONSOLE_WIDTH + offset)
+    puts message.center(CONSOLE_WIDTH + offset(message))
   end
 
-  def prompt_enter
-    prompt "Hit Enter to continue..."
-    gets
+  def print_rjust(message)
+    print(message.rjust(CONSOLE_WIDTH / 2 - 1 + offset(message)))
   end
 
-  def display_welcome_message; bannerize "Welcome to TwentyOne!" end
+  def display_goodbye_message
+    bannerize "Thank you for playing 21! Goodbye!"
+  end
 
-  def clear_screen; system('clear') || system('cls')  end
-
-  def capitalize_words(str); str.split.map(&:capitalize).join(' ') end
+  def print_title_summary_of_scores
+    p_horizon_bar("=")
+    p_center "Summary of scores"
+    p_short_line
+  end
 end
 
 class TwentyOne
@@ -55,20 +63,35 @@ class TwentyOne
     display_welcome_message
     @deck = Deck.new
     @players = initialize_players
-    @players.last.is_dealer? = true
+    @dealer = @players.last
   end
 
   def play
-    players_turn
-    show_result
+    loop do
+      players_turn
+      show_result
+      break unless play_again?
+    end
+    display_goodbye_message
   end
 
   private
 
+  def play_again?
+    answer =
+      loop do
+        prompt "Play again? (y/n)"
+        answer = gets.chomp
+        break answer.downcase if %w[y n].include? answer.downcase
+        alert "Sorry...must be (y/n)"
+      end
+    answer == 'y'
+  end
+
   def prompt_num_players
     loop do
       prompt "Please choose the number of players (2-8)." \
-      "Leave empty for default (2):"
+      " Leave empty for default (2):"
       answer = gets.chomp
       break answer.to_i if (2..8).cover? answer.to_i
       break 2 if answer.empty?
@@ -79,7 +102,7 @@ class TwentyOne
   def prompt_dealer_type
     loop do
       prompt "(C)omputer or (h)uman as dealer?" \
-      "Leave empty for default (computer):"
+      " Leave empty for default (computer):"
       answer = gets.chomp
       break Human if answer.downcase == 'h'
       break Computer if answer.downcase == 'c' || answer.empty?
@@ -91,7 +114,40 @@ class TwentyOne
     num_players = prompt_num_players
     dealer_type = prompt_dealer_type
 
-    (1...num_players).map { Human.new(@deck) } + [dealer_type.new(@deck)]
+    (1...num_players).map { Human.new(@deck) } +
+    [dealer_type.new(@deck, dealer: true)]
+  end
+
+  def players_turn
+    @players.each_with_index do |current_player, idx|
+      loop do
+        clear_screen
+        p_center(current_and_next(idx))
+        puts
+        other_players_reveal_one_card(current_player)
+
+        p_horizon_bar
+        current_player.show_hand if current_player.is_a?(Human)
+
+        break if !current_player.keep_hitting?(@deck)
+      end
+    end
+  end
+
+  def show_result
+    clear_screen
+
+    @players.each_with_index do |player, idx|
+      p_horizon_bar if idx > 0
+      player.show_hand
+    end
+
+    print_title_summary_of_scores
+
+    @players.each do |player|
+      print_rjust "#{dealer_or_not(player)} #{player.name}: #{player.total_value}"
+      puts " #{win_or_busted(player)}"
+    end
   end
 
   def dealer_bust_or_win_mark
@@ -115,23 +171,8 @@ class TwentyOne
   end
 
   def win_or_busted(player)
-    return dealer_bust_or_win_mark if player.eql?(@dealer)
+    return dealer_bust_or_win_mark if player.is_dealer?
     player_bust_win_lost_or_tie_mark(player)
-  end
-
-  def show_result
-    clear_screen
-    @players.each_with_index do |player, idx|
-      p_horizon_bar if idx > 0
-      player.show_hand
-    end
-    p_horizon_bar("=")
-    p_center "Summary of scores"
-    p_short_line
-    @players.each do |player|
-      print_rjust "#{player.name}: #{player.total_value}"
-      puts " #{win_or_busted(player)}"
-    end
   end
 
   def other_players_reveal_one_card(current_player)
@@ -160,22 +201,6 @@ class TwentyOne
 
   def current_and_next(idx)
     " #{@players[idx].name}'s turn #{display_next_player_name(idx)}"
-  end
-
-  def players_turn
-    @players.each_with_index do |current_player, idx|
-      loop do
-        clear_screen
-        p_center(current_and_next(idx))
-        puts
-        other_players_reveal_one_card(current_player)
-
-        p_horizon_bar
-        current_player.show_hand if current_player.is_a?(Human)
-
-        break if !current_player.keep_hitting?(@deck)
-      end
-    end
   end
 end
 
@@ -236,9 +261,9 @@ class Player
   include Displayable
 
   attr_reader :hand, :name, :total_value
-  attr_accessor :is_dealer?
 
-  def initialize(deck)
+  def initialize(deck, opt)
+    @is_dealer = opt[:dealer]
     @hand = []
     2.times { hit(deck) }
   end
@@ -267,9 +292,13 @@ class Player
     total_value > 21
   end
 
+  def is_dealer?
+    @is_dealer
+  end
+
   def show_hand
-    p_center "#{name}'s hand: #{hand.map(&:to_s).join(' ')}"
-    puts
+    print_rjust "#{name}'s hand: "
+    puts "#{hand.map(&:to_s).join(' ')}"
     p_center "#{name}, you have total value of #{total_value} on hand"
   end
 end
@@ -277,7 +306,7 @@ end
 class Human < Player
   @@names = []
 
-  def initialize(deck)
+  def initialize(deck, opt = {dealer: false})
     super
     @name = prompt_name
     @@names << @name
@@ -291,13 +320,14 @@ class Human < Player
     @@names.include?(capitalize_words(n))
   end
 
-  def player_number
+  def player_number_or_dealer
+    return "Dealer" if is_dealer?
     "Player ##{@@names.count + 1}"
   end
 
   def prompt_name
     loop do
-      prompt "#{player_number}, please enter your name: "
+      prompt "#{player_number_or_dealer}, please enter your name: "
       n = gets.chomp
       break capitalize_words(n) unless invalid_name?(n)
       next alert "Cannot be the same name" if same_existing_name?(n)
@@ -324,7 +354,7 @@ class Human < Player
 end
 
 class Computer < Player
-  def initialize(deck)
+  def initialize(deck, opt = {dealer: true})
     super
     @name = "A.I."
   end
