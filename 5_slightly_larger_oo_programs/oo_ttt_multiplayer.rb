@@ -1,15 +1,16 @@
-class String # source: Stackoverflow
-  def black;          "\033[30m#{self}\033[0m" end
-  def red;            "\033[31m#{self}\033[0m" end
-  def green;          "\033[32m#{self}\033[0m" end
-  def yellow;         "\033[33m#{self}\033[0m" end
-  def blue;           "\033[34m#{self}\033[0m" end
-  def magenta;        "\033[35m#{self}\033[0m" end
-  def cyan;           "\033[36m#{self}\033[0m" end
-  def gray;           "\033[37m#{self}\033[0m" end
+module Colorable # source: Stackoverflow
+  def black(str);        "\033[30m#{str}\033[0m" end
+  def red(str);          "\033[31m#{str}\033[0m" end
+  def green(str);        "\033[32m#{str}\033[0m" end
+  def yellow(str);       "\033[33m#{str}\033[0m" end
+  def blue(str);         "\033[34m#{str}\033[0m" end
+  def magenta(str);      "\033[35m#{str}\033[0m" end
+  def cyan(str);         "\033[36m#{str}\033[0m" end
+  def gray(str);         "\033[37m#{str}\033[0m" end
 end
 
 module Displayable
+  include Colorable
   CONSOLE_WIDTH = 80
 
   private
@@ -29,7 +30,7 @@ module Displayable
   end
 
   def prompt(message)
-    puts ">> #{message}".green
+    puts green(">> #{message}")
   end
 
   def capitalize_words(str)
@@ -37,7 +38,7 @@ module Displayable
   end
 
   def alert(message)
-    puts "<!> #{message}...".yellow
+    puts yellow("<!> #{message}...")
   end
 
   def display_player_created
@@ -119,7 +120,7 @@ class TTTGame
       puts "  (5) Board: 9x9 | Matches: 5 | Players: Human, Computer, Computer"
       puts "  (6) Board: 9x9 | Matches: 5 | Players: Human, Human, Computer"
       choice = gets.chomp
-      return choice.to_i if %w[0 1 2 3 4 5 6].include?(choice) || choice.empty?
+      break choice.to_i if %w[0 1 2 3 4 5 6].include?(choice) || choice.empty?
       alert "Invalid input, please enter a number between (1-5)"
     end
   end
@@ -139,7 +140,7 @@ class TTTGame
     players.each do |player|
       player.move(board)
       clear_screen_and_display_board
-      break if board.full? || board.someone_won?
+      break if someone_won_or_game_tie?
     end
   end
 
@@ -228,6 +229,8 @@ end
 #                              BOARD
 #===============================================================
 class Board
+  include Colorable
+
   INITIAL_MARK = ' '
   attr_reader :size, :squares, :winning_lines
 
@@ -252,7 +255,7 @@ class Board
   def draw_num_vert_lines(idx)
     ((-size + 1)..0).each do |i|
       if squares[idx + i - 1] == INITIAL_MARK
-        print "   #{(idx + i).to_s.rjust(2).blue}"
+        print "   #{blue((idx + i).to_s.rjust(2))}"
       else
         print "     "
       end
@@ -405,9 +408,9 @@ class Player
 
   def color_mark
     case color
-    when :red then @marker.red
-    when :yellow then @marker.yellow
-    when :magenta then @marker.magenta
+    when :red then red(@marker)
+    when :yellow then yellow(@marker)
+    when :magenta then magenta(@marker)
     end
   end
 end
@@ -443,8 +446,8 @@ class Human < Player
   def prompt_name
     loop do
       prompt "Human player#{second_or_nothing}, please enter your name:"
-      n = gets
-      return capitalize_words(n.chomp) unless invalid_name?(n.chomp)
+      n = gets.chomp
+      return capitalize_words(n) unless invalid_name?(n)
       alert "Name cannot be the same or empty and must contain a letter"
     end
   end
@@ -592,8 +595,9 @@ class Computer < Player
       empty_mark_between_two_other_marks?(line_num_marks) ||
       empty_mark_next_to_other_mark?(line_num_marks)
 
-    selected&.find { |_, mark| mark == empty_mark }&.first ||
-      line[marks.index(empty_mark)]
+    selected_arrs = selected&.find { |_, mark| mark == empty_mark }
+
+    selected_arrs&.first || line[marks.index(empty_mark)]
   end
 
   def unmarked_sq_idx(board, line, marks)
