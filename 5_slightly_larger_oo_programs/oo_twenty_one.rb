@@ -21,21 +21,40 @@ module Displayable
     p_horizon_bar(style)
   end
 
-  def clear_screen; system('clear') || system('cls')                 end
-  def display_welcome_message; bannerize "Welcome to TwentyOne!"     end
+  def clear_screen; system('clear') || system('cls') end
 
-  def prompt_enter; prompt "Hit Enter to continue..."; gets          end
-  def alert(message); puts yellow("<!> #{message}...")               end
-  def prompt(message); puts green(">> #{message}")                   end
+  def display_welcome_message
+    bannerize "Welcome to TwentyOne!"
+  end
 
-  def p_horizon_bar(style = '-'); puts style * CONSOLE_WIDTH         end
-  def capitalize_words(str); str.split.map(&:capitalize).join(' ')   end
+  def prompt_enter
+    prompt "Hit Enter to continue..."
+    gets
+  end
+
+  def alert(message)
+    puts yellow("<!> #{message}...")
+  end
+
+  def prompt(message)
+    puts green(">> #{message}")
+  end
+
+  def p_horizon_bar(style = '-')
+    puts style * CONSOLE_WIDTH
+  end
+
+  def capitalize_words(str)
+    str.split.map(&:capitalize).join(' ')
+  end
 
   def p_short_line
     puts(("-" * (CONSOLE_WIDTH / 2)).center(CONSOLE_WIDTH))
   end
 
-  def offset(message); 9 * message.scan(/\[0m/).count                end
+  def offset(message)
+    9 * message.scan(/\[0m/).count
+  end
 
   def p_center(message)
     puts message.center(CONSOLE_WIDTH + offset(message))
@@ -70,12 +89,18 @@ class TwentyOne
     loop do
       players_turn
       show_result
+      reset
       break unless play_again?
     end
     display_goodbye_message
   end
 
   private
+
+  def reset
+    @deck = Deck.new
+    @players.each { |player| player.reset_hand(@deck) }
+  end
 
   def play_again?
     answer =
@@ -115,14 +140,14 @@ class TwentyOne
     dealer_type = prompt_dealer_type
 
     (1...num_players).map { Human.new(@deck) } +
-    [dealer_type.new(@deck, dealer: true)]
+      [dealer_type.new(@deck, dealer: true)]
   end
 
   def players_turn
     @players.each_with_index do |current_player, idx|
       loop do
         clear_screen
-        p_center(current_and_next(idx))
+        p_center(current_and_next_turn_player_name(idx))
         puts
         other_players_reveal_one_card(current_player)
 
@@ -137,28 +162,46 @@ class TwentyOne
   def show_result
     clear_screen
 
-    @players.each_with_index do |player, idx|
+    (@players - [@dealer]).each_with_index do |player, idx|
       p_horizon_bar if idx > 0
       player.show_hand
     end
 
+    show_dealer_hand_or_not
+
     print_title_summary_of_scores
 
-    @players.each do |player|
-      print_rjust "#{dealer_or_not(player)} #{player.name}: #{player.total_value}"
+    (@players - [@dealer]).each do |player|
+      print_rjust "#{player.name}: " \
+      "#{player.total_value}"
       puts " #{win_or_busted(player)}"
     end
+
+    show_dealer_total_or_not
   end
 
-  def dealer_bust_or_win_mark
+  def show_dealer_hand_or_not
+    p_horizon_bar
+    @dealer.show_hand if !@dealer.bust? && !all_other_players_busted?
+  end
+
+  def show_dealer_total_or_not
+    print_rjust "#{dealer_or_not(@dealer)} #{@dealer.name}"
+
     if @dealer.bust?
-      red(" - BUSTED!")
-    elsif @dealer.total_value > @players[0...-1].map(&:total_value).max
-      green(" - WIN!")
+      puts red(" - BUSTED!")
+    elsif all_other_players_busted?
+      puts green(" - WIN!")
+    else
+      puts ": #{@dealer.total_value}"
     end
   end
 
-  def player_bust_win_lost_or_tie_mark(player)
+  def all_other_players_busted?
+    (@players - [@dealer]).all?(&:bust?)
+  end
+
+  def win_or_busted(player)
     if player.bust?
       red(" - BUSTED!")
     elsif player.total_value > @dealer.total_value || @dealer.bust?
@@ -168,11 +211,6 @@ class TwentyOne
     else
       blue(" - TIE!")
     end
-  end
-
-  def win_or_busted(player)
-    return dealer_bust_or_win_mark if player.is_dealer?
-    player_bust_win_lost_or_tie_mark(player)
   end
 
   def other_players_reveal_one_card(current_player)
@@ -199,7 +237,7 @@ class TwentyOne
     "| Next player: #{@players[idx + 1].name}" if idx < @players.size - 1
   end
 
-  def current_and_next(idx)
+  def current_and_next_turn_player_name(idx)
     " #{@players[idx].name}'s turn #{display_next_player_name(idx)}"
   end
 end
@@ -248,13 +286,8 @@ class Card
     when 'Hearts', 'Diamonds'then red(bg_gray("#{rank} #{custom_suit}"))
     end
   end
-
-  def value; Deck::RANKS.index(rank) end
 end
 
-#============================================================================
-#                                  Players
-#============================================================================
 class Player
   MAX_VALUE = 21
 
@@ -264,6 +297,10 @@ class Player
 
   def initialize(deck, opt)
     @is_dealer = opt[:dealer]
+    reset_hand(deck)
+  end
+
+  def reset_hand(deck)
     @hand = []
     2.times { hit(deck) }
   end
@@ -291,13 +328,13 @@ class Player
     total_value > 21
   end
 
-  def is_dealer?
+  def dealer?
     @is_dealer
   end
 
   def show_hand
     print_rjust "#{name}'s hand: "
-    puts "#{hand.map(&:to_s).join(' ')}"
+    puts hand.map(&:to_s).join(' ').to_s
     p_center "#{name}, you have total value of #{total_value} on hand"
   end
 end
@@ -305,7 +342,7 @@ end
 class Human < Player
   @@names = []
 
-  def initialize(deck, opt = {dealer: false})
+  def initialize(deck, opt = { dealer: false })
     super
     @name = prompt_name
     @@names << @name
@@ -320,7 +357,7 @@ class Human < Player
   end
 
   def player_number_or_dealer
-    return "Dealer" if is_dealer?
+    return "Dealer" if dealer?
     "Player ##{@@names.count + 1}"
   end
 
@@ -353,7 +390,7 @@ class Human < Player
 end
 
 class Computer < Player
-  def initialize(deck, opt = {dealer: true})
+  def initialize(deck, opt = { dealer: true })
     super
     @name = "A.I."
   end
